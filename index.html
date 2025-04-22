@@ -1,13 +1,887 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidCraft - Text-to-Video Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        .dashboard {
+            background: rgba(20, 20, 36, 0.95);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+        }
+        .nav-tabs {
+            display: flex;
+            background: #1a1a2e;
+            padding: 0.5rem;
+            border-radius: 12px 12px 0 0;
+        }
+        .nav-tab {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .nav-tab.active {
+            background: linear-gradient(to right, #7c3aed, #db2777);
+            color: white;
+        }
+        .nav-tab:hover {
+            background: #2a2a4a;
+            color: #e2e8f0;
+        }
+        .nav-tab::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, #7c3aed, #db2777);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        .nav-tab:hover::after {
+            transform: scaleX(1);
+        }
+        .panel {
+            padding: 1.5rem;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        .panel.active {
+            display: block;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .card {
+            background: #1e1e2e;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+        }
+        .card-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-header i {
+            transition: transform 0.3s ease;
+        }
+        .card-header.active i {
+            transform: rotate(180deg);
+        }
+        .card-content {
+            display: none;
+        }
+        .card-content.active {
+            display: block;
+        }
+        .image-preview {
+            width: 64px;
+            height: 64px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 4px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .image-preview:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+        }
+        .drop-zone {
+            border: 2px dashed #7c3aed;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            color: #94a3b8;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .drop-zone.dragover {
+            border-color: #db2777;
+            background: rgba(219, 39, 119, 0.1);
+            transform: scale(1.02);
+        }
+        .drop-zone i {
+            font-size: 1.5rem;
+            color: #7c3aed;
+            margin-bottom: 0.5rem;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #3b3b5a;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, #7c3aed, #db2777);
+            transition: width 0.3s ease-in-out;
+        }
+        .font-preview {
+            max-width: 40px;
+            max-height: 16px;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        .error-message {
+            background: #3d1a1a;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ef4444;
+            font-size: 0.875rem;
+            color: #f87171;
+        }
+        .btn-primary {
+            background: linear-gradient(to right, #7c3aed, #db2777);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
+        }
+        .btn-secondary {
+            background: #4b4b6b;
+            color: #e2e8f0;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            background: #6b6b9b;
+        }
+        .tooltip {
+            position: relative;
+        }
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0a0a1a;
+            color: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #3b3b5a;
+            border-radius: 8px;
+            padding: 0.5rem;
+        }
+        .input-group i {
+            color: #94a3b8;
+        }
+        .preview-container {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 200px;
+            position: relative;
+        }
+        .text-effect-preview {
+            background: #252540;
+            border-radius: 8px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            color: #e2e8f0;
+            text-align: center;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #4b4b6b;
+            transition: 0.4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background: #e2e8f0;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background: #7c3aed;
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        .color-picker {
+            position: relative;
+        }
+        .color-picker input[type="color"] {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+        .color-picker input[type="color"]::-webkit-color-swatch {
+            border: 1px solid #4b4b6b;
+            border-radius: 4px;
+        }
+        .color-picker:hover::after {
+            content: attr(data-color);
+            position: absolute;
+            top: -1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0a0a1a;
+            color: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .flex.items-center.gap-2 {
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        select#font {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @media (max-width: 768px) {
+            .nav-tabs {
+                flex-direction: column;
+            }
+            .nav-tab {
+                margin-bottom: 0.5rem;
+            }
+            .panel {
+                padding: 1rem;
+            }
+            .flex.items-center.gap-2 {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-4xl font-bold text-white font-poppins flex items-center">
+                    <i class="fas fa-video mr-2 text-purple-500"></i> VidCraft Studio
+                </h1>
+                <p class="text-gray-500 mt-2 text-sm">Craft cinematic videos from text with ease.</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="#" class="text-gray-500 hover:text-white text-sm flex items-center">
+                    <i class="fas fa-book mr-1"></i> Docs
+                </a>
+                <a href="#" class="text-gray-500 hover:text-white text-sm flex items-center">
+                    <i class="fas fa-headset mr-1"></i> Support
+                </a>
+            </div>
+        </header>
+        <div class="dashboard">
+            <!-- Navigation Tabs -->
+            <div class="nav-tabs">
+                <div class="nav-tab active" data-tab="create"><i class="fas fa-plus mr-1"></i> Create</div>
+                <div class="nav-tab" data-tab="preview"><i class="fas fa-eye mr-1"></i> Preview</div>
+                <div class="nav-tab" data-tab="output"><i class="fas fa-download mr-1"></i> Output</div>
+            </div>
+            <!-- Panels -->
+            <div class="panel active" id="create-panel">
+                <form id="video-form" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Content Settings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="text-lg font-semibold text-gray-200 flex items-center">
+                                <i class="fas fa-pen mr-2 text-purple-500"></i> Content
+                            </h3>
+                            <i class="fas fa-chevron-down text-gray-500"></i>
+                        </div>
+                        <div class="card-content active">
+                            <div class="space-y-3 mt-3">
+                                <div class="input-group">
+                                    <i class="fas fa-lightbulb"></i>
+                                    <input type="text" id="topic" name="topic" placeholder="Video Topic (e.g., AI Revolution)" required
+                                           class="flex-1 bg-transparent focus:outline-none text-sm text-gray-200">
+                                </div>
+                                <textarea id="custom-script" name="custom-script" placeholder="Custom Script (one sentence per line)"
+                                          class="w-full rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm h-24"></textarea>
+                                <select id="content-style" name="content-style"
+                                        class="w-full rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
+                                    <option value="educational" selected>Educational</option>
+                                    <option value="humorous">Humorous</option>
+                                    <option value="motivational">Motivational</option>
+                                    <option value="storytelling">Storytelling</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Visual Settings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="text-lg font-semibold text-gray-200 flex items-center">
+                                <i class="fas fa-image mr-2 text-purple-500"></i> Visuals
+                            </h3>
+                            <i class="fas fa-chevron-down text-gray-500"></i>
+                        </div>
+                        <div class="card-content active">
+                            <div class="space-y-3 mt-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">Background Images</label>
+                                    <div id="image-drop-zone" class="drop-zone">
+                                        <i class="fas fa-image"></i>
+                                        <p>Drag & drop images or <span class="text-purple-400 cursor-pointer">browse</span></p>
+                                        <input type="file" id="bg-images" name="bg-images" accept="image/*" multiple hidden>
+                                    </div>
+                                    <div id="image-preview" class="flex flex-wrap mt-2"></div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <select id="text-effect" name="text-effect"
+                                            class="flex-1 rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
+                                        <option value="static">Static</option>
+                                        <option value="fade_in">Fade In</option>
+                                        <option value="typewriter" selected>Typewriter</option>
+                                        <option value="slide_in">Slide In</option>
+                                        <option value="zoom_in">Zoom In</option>
+                                        <option value="wave">Wave</option>
+                                        <option value="highlight">Highlight</option>
+                                        <option value="word_by_word">Word by Word</option>
+                                    </select>
+                                    <button type="button" id="preview-text-effect" class="btn-secondary tooltip" data-tooltip="Preview text effect">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                </div>
+                                <div id="text-effect-preview" class="text-effect-preview hidden">Sample Text</div>
+                                <select id="bg-animation" name="bg-animation"
+                                        class="w-full rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
+                                    <option value="ken_burns" selected>Ken Burns</option>
+                                    <option value="crossfade">Crossfade</option>
+                                    <option value="zoom_burst">Zoom Burst</option>
+                                    <option value="particle_flow">Particle Flow</option>
+                                    <option value="sparkle_overlay">Sparkle Overlay</option>
+                                    <option value="glitch_transition">Glitch Transition</option>
+                                    <option value="slide_transition">Slide Transition</option>
+                                </select>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" id="caption-font-size" name="caption-font-size" value="40" min="20" max="100"
+                                           class="w-24 rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
+                                    <select id="font" name="font"
+                                            class="flex-1 rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
+                                        {% if fonts %}
+                                            {% for font in fonts %}
+                                                <option value="{{ font }}">{{ font }}</option>
+                                            {% endfor %}
+                                        {% else %}
+                                            <option value="">Default Font</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <label class="toggle">
+                                        <input type="checkbox" id="caption-background-enabled" name="caption-background-enabled" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span class="text-sm text-gray-400">Caption Background</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="color-picker" data-color="Text Color">
+                                        <input type="color" id="caption-text-color" name="caption-text-color" value="#FFFF00">
+                                    </div>
+                                    <div class="color-picker" data-color="Background Color">
+                                        <input type="color" id="caption-bg-color" name="caption-bg-color" value="#000000">
+                                    </div>
+                                </div>
+                                <select id="caption-position" name="caption-position"
+                                        class="w-full rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
+                                    <option value="top-left">Top Left</option>
+                                    <option value="top-center">Top Center</option>
+                                    <option value="top-right">Top Right</option>
+                                    <option value="middle-left">Middle Left</option>
+                                    <option value="middle-center">Middle Center</option>
+                                    <option value="middle-right">Middle Right</option>
+                                    <option value="bottom-left">Bottom Left</option>
+                                    <option value="bottom-center" selected>Bottom Center</option>
+                                    <option value="bottom-right">Bottom Right</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Audio Settings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="text-lg font-semibold text-gray-200 flex items-center">
+                                <i class="fas fa-music mr-2 text-purple-500"></i> Audio
+                            </h3>
+                            <i class="fas fa-chevron-down text-gray-500"></i>
+                        </div>
+                        <div class="card-content active">
+                            <div class="space-y-3 mt-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">Background Music</label>
+                                    <div id="music-drop-zone" class="drop-zone">
+                                        <i class="fas fa-music"></i>
+                                        <p>Drag & drop audio or <span class="text-purple-400 cursor-pointer">browse</span></p>
+                                        <input type="file" id="bg-music" name="bg-music" accept="audio/mp3,audio/wav" hidden>
+                                    </div>
+                                </div>
+                                <select id="language" name="language"
+                                        class="w-full rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
+                                    <option value="en-US-male">English (Male)</option>
+                                    <option value="en-US-female" selected>English (Female)</option>
+                                </select>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">Narration Speed</label>
+                                    <input type="range" id="tts-speed" name="tts-speed" min="0.5" max="1.5" step="0.1" value="1.0"
+                                           class="w-full accent-purple-500">
+                                    <span id="tts-speed-value" class="text-sm text-gray-400">1.0x</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Actions -->
+                    <div class="card flex justify-end gap-2">
+                        <button type="button" id="preview-script" class="btn-secondary tooltip" data-tooltip="Preview generated script">
+                            <i class="fas fa-eye mr-1"></i> Script
+                        </button>
+                        <button type="button" id="preview-narration" class="btn-secondary tooltip" data-tooltip="Listen to narration sample">
+                            <i class="fas fa-volume-up mr-1"></i> Narration
+                        </button>
+                        <button type="submit" class="btn-primary tooltip" data-tooltip="Generate your video">
+                            <i class="fas fa-video mr-1"></i> Generate
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <!-- Preview Panel -->
+            <div class="panel" id="preview-panel">
+                <div class="preview-container">
+                    <h3 class="text-lg font-semibold text-gray-200 mb-3 flex items-center">
+                        <i class="fas fa-desktop mr-2 text-purple-500"></i> Script Preview
+                    </h3>
+                    <pre id="script-text" class="bg-[#1e1e2e] text-gray-200 p-4 rounded-md text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></pre>
+                    <button type="button" id="regenerate-script" class="mt-2 btn-secondary">
+                        <i class="fas fa-sync-alt mr-1"></i> Regenerate
+                    </button>
+                </div>
+            </div>
+            <!-- Output Panel -->
+            <div class="panel" id="output-panel">
+                <div class="card">
+                    <h3 class="text-lg font-semibold text-gray-200 mb-3 flex items-center">
+                        <i class="fas fa-download mr-2 text-purple-500"></i> Output
+                    </h3>
+                    <div id="progress-container" class="hidden mb-4">
+                        <p id="progress-text" class="text-sm text-gray-400 mb-2">Starting your video creation...</p>
+                        <div class="progress-bar">
+                            <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="result-container" class="hidden">
+                        <p class="text-purple-400 font-semibold mb-2 flex items-center">
+                            <i class="fas fa-check-circle mr-1"></i> Your video is ready!
+                        </p>
+                        <a id="download-link" href="#" download
+                           class="inline-block btn-primary"><i class="fas fa-download mr-1"></i> Download Video</a>
+                        <div id="feedback-container" class="mt-4">
+                            <p class="text-sm text-gray-400 mb-2">How’s the video?</p>
+                            <button type="button" class="btn-secondary mr-2" onclick="submitFeedback(1)">
+                                <i class="fas fa-thumbs-up mr-1"></i> Great
+                            </button>
+                            <button type="button" class="btn-secondary" onclick="submitFeedback(0)">
+                                <i class="fas fa-thumbs-down mr-1"></i> Needs Work
+                            </button>
+                        </div>
+                    </div>
+                    <div id="error-container" class="hidden mt-4">
+                        <p id="error-message" class="error-message"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const form = document.getElementById('video-form');
+        const bgImagesInput = document.getElementById('bg-images');
+        const imageDropZone = document.getElementById('image-drop-zone');
+        const musicDropZone = document.getElementById('music-drop-zone');
+        const bgMusicInput = document.getElementById('bg-music');
+        const imagePreview = document.getElementById('image-preview');
+        const fontSelect = document.getElementById('font');
+        const progressContainer = document.getElementById('progress-container');
+        const progressText = document.getElementById('progress-text');
+        const progressBarFill = document.getElementById('progress-bar-fill');
+        const resultContainer = document.getElementById('result-container');
+        const downloadLink = document.getElementById('download-link');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const scriptPreview = document.getElementById('preview-panel');
+        const scriptText = document.getElementById('script-text');
+        const ttsSpeedInput = document.getElementById('tts-speed');
+        const ttsSpeedValue = document.getElementById('tts-speed-value');
+        const textEffectPreview = document.getElementById('text-effect-preview');
+
+        let progressInterval;
+
+        // Update narration speed display
+        ttsSpeedInput.addEventListener('input', () => {
+            ttsSpeedValue.textContent = `${parseFloat(ttsSpeedInput.value).toFixed(1)}x`;
+        });
+
+        // Tab navigation
+        const tabs = document.querySelectorAll('.nav-tab');
+        const panels = document.querySelectorAll('.panel');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                panels.forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+            });
+        });
+
+        // Collapsible card headers
+        document.querySelectorAll('.card-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('i');
+                content.classList.toggle('active');
+                header.classList.toggle('active');
+            });
+        });
+
+        // Drag-and-drop for images
+        imageDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            imageDropZone.classList.add('dragover');
+        });
+        imageDropZone.addEventListener('dragleave', () => {
+            imageDropZone.classList.remove('dragover');
+        });
+        imageDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            imageDropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            bgImagesInput.files = files;
+            updateImagePreviews(files);
+        });
+        imageDropZone.querySelector('span').addEventListener('click', () => bgImagesInput.click());
+        bgImagesInput.addEventListener('change', () => updateImagePreviews(bgImagesInput.files));
+
+        function updateImagePreviews(files) {
+            imagePreview.innerHTML = '';
+            Array.from(files).forEach(file => {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.className = 'image-preview';
+                img.alt = 'Background preview';
+                imagePreview.appendChild(img);
+            });
+        }
+
+        // Drag-and-drop for music
+        musicDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            musicDropZone.classList.add('dragover');
+        });
+        musicDropZone.addEventListener('dragleave', () => {
+            musicDropZone.classList.remove('dragover');
+        });
+        imageDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            imageDropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            bgImagesInput.files = files;
+            updateImagePreviews(files);
+        });
+        imageDropZone.querySelector('span').addEventListener('click', () => bgImagesInput.click());
+        bgImagesInput.addEventListener('change', () => updateImagePreviews(bgImagesInput.files));
+
+        function updateImagePreviews(files) {
+            imagePreview.innerHTML = '';
+            Array.from(files).forEach(file => {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.className = 'image-preview';
+                img.alt = 'Background preview';
+                imagePreview.appendChild(img);
+            });
+        }
+
+        // Drag-and-drop for music
+        musicDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            musicDropZone.classList.add('dragover');
+        });
+        musicDropZone.addEventListener('dragleave', () => {
+            musicDropZone.classList.remove('dragover');
+        });
+        musicDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            musicDropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            bgMusicInput.files = files;
+            musicDropZone.querySelector('p').textContent = files.length ? `${files[0].name}` : 'Drag & drop audio or browse';
+        });
+        musicDropZone.querySelector('span').addEventListener('click', () => bgMusicInput.click());
+        bgMusicInput.addEventListener('change', () => {
+            musicDropZone.querySelector('p').textContent = bgMusicInput.files.length ? bgMusicInput.files[0].name : 'Drag & drop audio or browse';
+        });
+
+        // Text effect preview
+        document.getElementById('preview-text-effect').addEventListener('click', () => {
+            const effect = document.getElementById('text-effect').value;
+            textEffectPreview.classList.remove('hidden');
+            textEffectPreview.style.animation = 'none';
+            textEffectPreview.offsetHeight; // Trigger reflow
+            textEffectPreview.style.animation = getAnimation(effect);
+            setTimeout(() => textEffectPreview.classList.add('hidden'), 2000);
+        });
+
+        function getAnimation(effect) {
+            const animations = {
+                static: 'none',
+                fade_in: 'fadeIn 1s ease-in',
+                typewriter: 'typewriter 2s steps(40, end)',
+                slide_in: 'slideIn 1s ease-in',
+                zoom_in: 'zoomIn 1s ease-in',
+                wave: 'wave 2s ease-in-out infinite',
+                highlight: 'highlight 1s ease-in',
+                word_by_word: 'wordByWord 2s ease-in'
+            };
+            return animations[effect] || 'none';
+        }
+
+        // Custom animations for text effects
+        const styleSheet = document.createElement('style');
+        styleSheet.innerHTML = `
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes typewriter {
+                from { width: 0; } to { width: 100%; }
+                0% { border-right: 2px solid #e2e8f0; } 100% { border-right: none; }
+            }
+            @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+            @keyframes zoomIn { from { transform: scale(0); } to { transform: scale(1); } }
+            @keyframes wave {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-5px); }
+            }
+            @keyframes highlight {
+                0% { background: none; } 50% { background: rgba(124, 58, 237, 0.3); } 100% { background: none; }
+            }
+            @keyframes wordByWord {
+                0% { opacity: 0; } 25% { opacity: 0.3; } 50% { opacity: 0.6; } 100% { opacity: 1; }
+            }
+            .text-effect-preview { overflow: hidden; white-space: nowrap; }
+        `;
+        document.head.appendChild(styleSheet);
+
+        // Start progress polling
+        function startProgressPolling() {
+            progressInterval = setInterval(async () => {
+                try {
+                    const response = await axios.get('/progress');
+                    const { step, progress } = response.data;
+                    progressContainer.classList.remove('hidden');
+                    progressText.textContent = step;
+                    progressBarFill.style.width = `${progress}%`;
+                    if (step === 'Ready for your next masterpiece!') {
+                        clearInterval(progressInterval);
+                    }
+                } catch (error) {
+                    console.error('Progress polling error:', error);
+                }
+            }, 1000);
+        }
+
+        // Load font previews
+        async function loadFontPreviews() {
+            const options = fontSelect.options;
+            for (let i = 0; i < options.length; i++) {
+                const fontName = options[i].value;
+                if (fontName) {
+                    try {
+                        const response = await axios.get(`/font-preview/${encodeURIComponent(fontName)}`);
+                        const img = document.createElement('img');
+                        img.src = response.data.preview;
+                        img.className = 'font-preview';
+                        img.alt = `${fontName} preview`;
+                        options[i].text = `${fontName} `;
+                        options[i].appendChild(img);
+                    } catch (error) {
+                        console.error(`Failed to load preview for ${fontName}:`, error);
+                    }
+                }
+            }
+        }
+
+        // Preview script
+        async function previewScript() {
+            try {
+                const formData = new FormData(form);
+                const response = await axios.post('/preview-script', formData);
+                scriptText.textContent = response.data.script;
+                tabs.forEach(t => t.classList.remove('active'));
+                document.querySelector('.nav-tab[data-tab="preview"]').classList.add('active');
+                panels.forEach(p => p.classList.remove('active'));
+                scriptPreview.classList.add('active');
+                errorContainer.classList.add('hidden');
+            } catch (error) {
+                errorContainer.classList.remove('hidden');
+                errorMessage.textContent = error.response?.data?.error || 'Failed to preview script.';
+                tabs.forEach(t => t.classList.remove('active'));
+                document.querySelector('.nav-tab[data-tab="output"]').classList.add('active');
+                panels.forEach(p => p.classList.remove('active'));
+                document.getElementById('output-panel').classList.add('active');
+            }
+        }
+
+        // Preview script button
+        document.getElementById('preview-script').addEventListener('click', previewScript);
+
+        // Regenerate script button
+        document.getElementById('regenerate-script')?.addEventListener('click', previewScript);
+
+        // Preview narration button
+        document.getElementById('preview-narration').addEventListener('click', async () => {
+            try {
+                const formData = new FormData();
+                const topic = document.getElementById('topic').value || 'Sample narration for your video.';
+                formData.append('sample_text', topic);
+                formData.append('language', document.getElementById('language').value);
+                formData.append('tts-speed', parseFloat(document.getElementById('tts-speed').value).toFixed(1));
+                const response = await axios.post('/preview-narration', formData, {
+                    responseType: 'blob'
+                });
+                const audioUrl = URL.createObjectURL(response.data);
+                const audio = new Audio(audioUrl);
+                audio.play();
+                errorContainer.classList.add('hidden');
+            } catch (error) {
+                errorContainer.classList.remove('hidden');
+                errorMessage.textContent = error.response?.data?.error || 'Failed to preview narration.';
+                tabs.forEach(t => t.classList.remove('active'));
+                document.querySelector('.nav-tab[data-tab="output"]').classList.add('active');
+                panels.forEach(p => p.classList.remove('active'));
+                document.getElementById('output-panel').classList.add('active');
+            }
+        });
+
+        // Submit feedback
+        async function submitFeedback(rating) {
+            try {
+                await axios.post('/feedback', { rating, filename: downloadLink.download });
+                alert('Thanks for your feedback!');
+            } catch (error) {
+                console.error('Feedback submission failed:', error);
+                alert('Failed to submit feedback.');
+            }
+        }
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            progressContainer.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelector('.nav-tab[data-tab="output"]').classList.add('active');
+            panels.forEach(p => p.classList.remove('active'));
+            document.getElementById('output-panel').classList.add('active');
+            progressText.textContent = 'Starting your video creation...';
+            progressBarFill.style.width = '0%';
+            startProgressPolling();
+
+            try {
+                const formData = new FormData(form);
+                const response = await axios.post('/generate-video', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                clearInterval(progressInterval);
+                progressContainer.classList.add('hidden');
+                resultContainer.classList.remove('hidden');
+                downloadLink.href = `/output/${response.data.filename}`;
+                downloadLink.download = response.data.filename;
+                downloadLink.textContent = `Download ${response.data.filename}`;
+            } catch (error) {
+                clearInterval(progressInterval);
+                progressContainer.classList.add('hidden');
+                errorContainer.classList.remove('hidden');
+                errorMessage.textContent = error.response?.data?.error || 'Video generation failed. Please check your inputs and try again.';
+            }
+        });
+
+        // Load font previews on page load
+        window.addEventListener('load', loadFontPreviews);
+    </script>
+</body>
 </html>
