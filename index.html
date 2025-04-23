@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VidCraft - Text-to-Video Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
@@ -152,20 +154,6 @@
             height: 100%;
             background: linear-gradient(to right, #7c3aed, #db2777);
             transition: width 0.3s ease-in-out;
-        }
-        .font-preview {
-            max-width: 40px;
-            max-height: 16px;
-            vertical-align: middle;
-            margin-left: 4px;
-        }
-        .error-message {
-            background: #3d1a1a;
-            padding: 8px;
-            border-radius: 6px;
-            border: 1px solid #ef4444;
-            font-size: 0.875rem;
-            color: #f87171;
         }
         .btn-primary {
             background: linear-gradient(to right, #7c3aed, #db2777);
@@ -314,6 +302,21 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        .alert {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+        }
+        .alert-success {
+            background: #2a4a2a;
+            color: #a3e635;
+        }
+        .alert-error {
+            background: #4a2a2a;
+            color: #f87171;
+        }
         @media (max-width: 768px) {
             .nav-tabs {
                 flex-direction: column;
@@ -329,6 +332,10 @@
                 align-items: flex-start;
             }
         }
+        /* Ensure modal visibility */
+        #access-modal:not(.hidden) {
+            display: flex !important;
+        }
     </style>
 </head>
 <body>
@@ -340,13 +347,10 @@
                 </h1>
                 <p class="text-gray-500 mt-2 text-sm">Craft cinematic videos from text with ease.</p>
             </div>
-            <div class="flex gap-4">
-                <a href="#" class="text-gray-500 hover:text-white text-sm flex items-center">
-                    <i class="fas fa-book mr-1"></i> Docs
-                </a>
-                <a href="#" class="text-gray-500 hover:text-white text-sm flex items-center">
-                    <i class="fas fa-headset mr-1"></i> Support
-                </a>
+            <div>
+                <button id="request-access" class="btn-primary flex items-center">
+                    <i class="fas fa-key mr-1"></i> Request Access
+                </button>
             </div>
         </header>
         <div class="dashboard">
@@ -358,7 +362,7 @@
             </div>
             <!-- Panels -->
             <div class="panel active" id="create-panel">
-                <form id="video-form" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <form id="video-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Content Settings -->
                     <div class="card">
                         <div class="card-header">
@@ -371,7 +375,7 @@
                             <div class="space-y-3 mt-3">
                                 <div class="input-group">
                                     <i class="fas fa-lightbulb"></i>
-                                    <input type="text" id="topic" name="topic" placeholder="Video Topic (e.g., AI Revolution)" required
+                                    <input type="text" id="topic" name="topic" placeholder="Video Topic (e.g., AI Revolution)"
                                            class="flex-1 bg-transparent focus:outline-none text-sm text-gray-200">
                                 </div>
                                 <textarea id="custom-script" name="custom-script" placeholder="Custom Script (one sentence per line)"
@@ -437,13 +441,7 @@
                                            class="w-24 rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
                                     <select id="font" name="font"
                                             class="flex-1 rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
-                                        {% if fonts %}
-                                            {% for font in fonts %}
-                                                <option value="{{ font }}">{{ font }}</option>
-                                            {% endfor %}
-                                        {% else %}
-                                            <option value="">Default Font</option>
-                                        {% endif %}
+                                        <option value="default">Default Font</option>
                                     </select>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -510,13 +508,13 @@
                     </div>
                     <!-- Actions -->
                     <div class="card flex justify-end gap-2">
-                        <button type="button" id="preview-script" class="btn-secondary tooltip" data-tooltip="Preview generated script">
+                        <button type="button" id="preview-script" class="btn-secondary tooltip" data-tooltip="Preview generated script" disabled>
                             <i class="fas fa-eye mr-1"></i> Script
                         </button>
-                        <button type="button" id="preview-narration" class="btn-secondary tooltip" data-tooltip="Listen to narration sample">
+                        <button type="button" id="preview-narration" class="btn-secondary tooltip" data-tooltip="Listen to narration sample" disabled>
                             <i class="fas fa-volume-up mr-1"></i> Narration
                         </button>
-                        <button type="submit" class="btn-primary tooltip" data-tooltip="Generate your video">
+                        <button type="submit" id="generate-button" class="btn-primary tooltip" data-tooltip="Generate your video">
                             <i class="fas fa-video mr-1"></i> Generate
                         </button>
                     </div>
@@ -529,7 +527,7 @@
                         <i class="fas fa-desktop mr-2 text-purple-500"></i> Script Preview
                     </h3>
                     <pre id="script-text" class="bg-[#1e1e2e] text-gray-200 p-4 rounded-md text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></pre>
-                    <button type="button" id="regenerate-script" class="mt-2 btn-secondary">
+                    <button type="button" id="regenerate-script" class="mt-2 btn-secondary" disabled>
                         <i class="fas fa-sync-alt mr-1"></i> Regenerate
                     </button>
                 </div>
@@ -554,43 +552,84 @@
                            class="inline-block btn-primary"><i class="fas fa-download mr-1"></i> Download Video</a>
                         <div id="feedback-container" class="mt-4">
                             <p class="text-sm text-gray-400 mb-2">How’s the video?</p>
-                            <button type="button" class="btn-secondary mr-2" onclick="submitFeedback(1)">
+                            <button type="button" class="btn-secondary mr-2" disabled>
                                 <i class="fas fa-thumbs-up mr-1"></i> Great
                             </button>
-                            <button type="button" class="btn-secondary" onclick="submitFeedback(0)">
+                            <button type="button" class="btn-secondary" disabled>
                                 <i class="fas fa-thumbs-down mr-1"></i> Needs Work
                             </button>
                         </div>
-                    </div>
-                    <div id="error-container" class="hidden mt-4">
-                        <p id="error-message" class="error-message"></p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <!-- Request Access Modal -->
+    <div id="access-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-[#1e1e2e] rounded-lg p-6 w-full max-w-md shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-200 font-poppins">Request Access</h2>
+                <button id="close-modal" class="text-gray-500 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="form-message" class="hidden"></div>
+            <form id="access-form" class="space-y-4">
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="name" name="name" placeholder="Full Name" required
+                           class="flex-1 bg-transparent focus:outline-none text-sm text-gray-200">
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="email" name="email" placeholder="Email Address" required
+                           class="flex-1 bg-transparent focus:outline-none text-sm text-gray-200">
+                </div>
+                <button type="submit" class="btn-primary w-full">
+                    <i class="fas fa-paper-plane mr-1"></i> Submit
+                </button>
+            </form>
+        </div>
+    </div>
     <script>
+        // Check if Firebase SDK is loaded
+        if (typeof firebase === 'undefined') {
+            console.error('Firebase SDK not loaded. Please check CDN URLs or network connectivity.');
+            alert('Failed to load Firebase SDK. Please check your internet connection and try again.');
+        } else {
+            console.log('Firebase SDK loaded successfully');
+        }
+
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD6jD0wb6d0Qf9R49kGWcowpl7KuIRqr0o",
+            authDomain: "vidcraft-studio-ce84a.firebaseapp.com",
+            projectId: "vidcraft-studio-ce84a",
+            storageBucket: "vidcraft-studio-ce84a.firebasestorage.app",
+            messagingSenderId: "763064123902",
+            appId: "1:763064123902:web:79037b611165d11433c0af"
+        };
+
+        let db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            alert('Failed to initialize Firebase. Please check your configuration and try again.');
+        }
+
+        // Form handling
         const form = document.getElementById('video-form');
         const bgImagesInput = document.getElementById('bg-images');
         const imageDropZone = document.getElementById('image-drop-zone');
         const musicDropZone = document.getElementById('music-drop-zone');
         const bgMusicInput = document.getElementById('bg-music');
         const imagePreview = document.getElementById('image-preview');
-        const fontSelect = document.getElementById('font');
-        const progressContainer = document.getElementById('progress-container');
-        const progressText = document.getElementById('progress-text');
-        const progressBarFill = document.getElementById('progress-bar-fill');
-        const resultContainer = document.getElementById('result-container');
-        const downloadLink = document.getElementById('download-link');
-        const errorContainer = document.getElementById('error-container');
-        const errorMessage = document.getElementById('error-message');
-        const scriptPreview = document.getElementById('preview-panel');
-        const scriptText = document.getElementById('script-text');
         const ttsSpeedInput = document.getElementById('tts-speed');
         const ttsSpeedValue = document.getElementById('tts-speed-value');
         const textEffectPreview = document.getElementById('text-effect-preview');
-
-        let progressInterval;
 
         // Update narration speed display
         ttsSpeedInput.addEventListener('input', () => {
@@ -630,41 +669,21 @@
         imageDropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             imageDropZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            bgImagesInput.files = files;
-            updateImagePreviews(files);
+            try {
+                const files = e.dataTransfer.files;
+                updateImagePreviews(files);
+            } catch (error) {
+                console.error('Error handling image drop:', error);
+            }
         });
         imageDropZone.querySelector('span').addEventListener('click', () => bgImagesInput.click());
-        bgImagesInput.addEventListener('change', () => updateImagePreviews(bgImagesInput.files));
-
-        function updateImagePreviews(files) {
-            imagePreview.innerHTML = '';
-            Array.from(files).forEach(file => {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                img.className = 'image-preview';
-                img.alt = 'Background preview';
-                imagePreview.appendChild(img);
-            });
-        }
-
-        // Drag-and-drop for music
-        musicDropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            musicDropZone.classList.add('dragover');
+        bgImagesInput.addEventListener('change', () => {
+            try {
+                updateImagePreviews(bgImagesInput.files);
+            } catch (error) {
+                console.error('Error handling image input:', error);
+            }
         });
-        musicDropZone.addEventListener('dragleave', () => {
-            musicDropZone.classList.remove('dragover');
-        });
-        imageDropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            imageDropZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            bgImagesInput.files = files;
-            updateImagePreviews(files);
-        });
-        imageDropZone.querySelector('span').addEventListener('click', () => bgImagesInput.click());
-        bgImagesInput.addEventListener('change', () => updateImagePreviews(bgImagesInput.files));
 
         function updateImagePreviews(files) {
             imagePreview.innerHTML = '';
@@ -688,13 +707,20 @@
         musicDropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             musicDropZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            bgMusicInput.files = files;
-            musicDropZone.querySelector('p').textContent = files.length ? `${files[0].name}` : 'Drag & drop audio or browse';
+            try {
+                const files = e.dataTransfer.files;
+                musicDropZone.querySelector('p').textContent = files.length ? `${files[0].name}` : 'Drag & drop audio or browse';
+            } catch (error) {
+                console.error('Error handling music drop:', error);
+            }
         });
         musicDropZone.querySelector('span').addEventListener('click', () => bgMusicInput.click());
         bgMusicInput.addEventListener('change', () => {
-            musicDropZone.querySelector('p').textContent = bgMusicInput.files.length ? bgMusicInput.files[0].name : 'Drag & drop audio or browse';
+            try {
+                musicDropZone.querySelector('p').textContent = bgMusicInput.files.length ? bgMusicInput.files[0].name : 'Drag & drop audio or browse';
+            } catch (error) {
+                console.error('Error handling music input:', error);
+            }
         });
 
         // Text effect preview
@@ -745,144 +771,88 @@
         `;
         document.head.appendChild(styleSheet);
 
-        // Start progress polling
-        function startProgressPolling() {
-            progressInterval = setInterval(async () => {
-                try {
-                    const response = await axios.get('/progress');
-                    const { step, progress } = response.data;
-                    progressContainer.classList.remove('hidden');
-                    progressText.textContent = step;
-                    progressBarFill.style.width = `${progress}%`;
-                    if (step === 'Ready for your next masterpiece!') {
-                        clearInterval(progressInterval);
-                    }
-                } catch (error) {
-                    console.error('Progress polling error:', error);
-                }
-            }, 1000);
-        }
-
-        // Load font previews
-        async function loadFontPreviews() {
-            const options = fontSelect.options;
-            for (let i = 0; i < options.length; i++) {
-                const fontName = options[i].value;
-                if (fontName) {
-                    try {
-                        const response = await axios.get(`/font-preview/${encodeURIComponent(fontName)}`);
-                        const img = document.createElement('img');
-                        img.src = response.data.preview;
-                        img.className = 'font-preview';
-                        img.alt = `${fontName} preview`;
-                        options[i].text = `${fontName} `;
-                        options[i].appendChild(img);
-                    } catch (error) {
-                        console.error(`Failed to load preview for ${fontName}:`, error);
-                    }
-                }
-            }
-        }
-
-        // Preview script
-        async function previewScript() {
-            try {
-                const formData = new FormData(form);
-                const response = await axios.post('/preview-script', formData);
-                scriptText.textContent = response.data.script;
-                tabs.forEach(t => t.classList.remove('active'));
-                document.querySelector('.nav-tab[data-tab="preview"]').classList.add('active');
-                panels.forEach(p => p.classList.remove('active'));
-                scriptPreview.classList.add('active');
-                errorContainer.classList.add('hidden');
-            } catch (error) {
-                errorContainer.classList.remove('hidden');
-                errorMessage.textContent = error.response?.data?.error || 'Failed to preview script.';
-                tabs.forEach(t => t.classList.remove('active'));
-                document.querySelector('.nav-tab[data-tab="output"]').classList.add('active');
-                panels.forEach(p => p.classList.remove('active'));
-                document.getElementById('output-panel').classList.add('active');
-            }
-        }
-
-        // Preview script button
-        document.getElementById('preview-script').addEventListener('click', previewScript);
-
-        // Regenerate script button
-        document.getElementById('regenerate-script')?.addEventListener('click', previewScript);
-
-        // Preview narration button
-        document.getElementById('preview-narration').addEventListener('click', async () => {
-            try {
-                const formData = new FormData();
-                const topic = document.getElementById('topic').value || 'Sample narration for your video.';
-                formData.append('sample_text', topic);
-                formData.append('language', document.getElementById('language').value);
-                formData.append('tts-speed', parseFloat(document.getElementById('tts-speed').value).toFixed(1));
-                const response = await axios.post('/preview-narration', formData, {
-                    responseType: 'blob'
-                });
-                const audioUrl = URL.createObjectURL(response.data);
-                const audio = new Audio(audioUrl);
-                audio.play();
-                errorContainer.classList.add('hidden');
-            } catch (error) {
-                errorContainer.classList.remove('hidden');
-                errorMessage.textContent = error.response?.data?.error || 'Failed to preview narration.';
-                tabs.forEach(t => t.classList.remove('active'));
-                document.querySelector('.nav-tab[data-tab="output"]').classList.add('active');
-                panels.forEach(p => p.classList.remove('active'));
-                document.getElementById('output-panel').classList.add('active');
-            }
-        });
-
-        // Submit feedback
-        async function submitFeedback(rating) {
-            try {
-                await axios.post('/feedback', { rating, filename: downloadLink.download });
-                alert('Thanks for your feedback!');
-            } catch (error) {
-                console.error('Feedback submission failed:', error);
-                alert('Failed to submit feedback.');
-            }
-        }
-
-        // Form submission
-        form.addEventListener('submit', async (e) => {
+        // Generate button action
+        form.addEventListener('submit', (e) => {
             e.preventDefault();
-            progressContainer.classList.remove('hidden');
-            resultContainer.classList.add('hidden');
-            errorContainer.classList.add('hidden');
-            tabs.forEach(t => t.classList.remove('active'));
-            document.querySelector('.nav-tab[data-tab="output"]').classList.add('active');
-            panels.forEach(p => p.classList.remove('active'));
-            document.getElementById('output-panel').classList.add('active');
-            progressText.textContent = 'Starting your video creation...';
-            progressBarFill.style.width = '0%';
-            startProgressPolling();
+            alert('Thank you for generating the video!');
+        });
 
-            try {
-                const formData = new FormData(form);
-                const response = await axios.post('/generate-video', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
-                clearInterval(progressInterval);
-                progressContainer.classList.add('hidden');
-                resultContainer.classList.remove('hidden');
-                downloadLink.href = `/output/${response.data.filename}`;
-                downloadLink.download = response.data.filename;
-                downloadLink.textContent = `Download ${response.data.filename}`;
-            } catch (error) {
-                clearInterval(progressInterval);
-                progressContainer.classList.add('hidden');
-                errorContainer.classList.remove('hidden');
-                errorMessage.textContent = error.response?.data?.error || 'Video generation failed. Please check your inputs and try again.';
+        // Modal functionality
+        const requestAccessBtn = document.getElementById('request-access');
+        const accessModal = document.getElementById('access-modal');
+        const closeModalBtn = document.getElementById('close-modal');
+        const accessForm = document.getElementById('access-form');
+        const formMessage = document.getElementById('form-message');
+
+        requestAccessBtn.addEventListener('click', () => {
+            console.log('Request Access button clicked');
+            accessModal.classList.remove('hidden');
+            formMessage.classList.add('hidden');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            accessModal.classList.add('hidden');
+            formMessage.classList.add('hidden');
+        });
+
+        // Close modal when clicking outside
+        accessModal.addEventListener('click', (e) => {
+            if (e.target === accessModal) {
+                accessModal.classList.add('hidden');
+                formMessage.classList.add('hidden');
             }
         });
 
-        // Load font previews on page load
-        window.addEventListener('load', loadFontPreviews);
+        // Handle form submission
+        accessForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+
+            console.log('Form submitted:', { name, email });
+
+            if (!name) {
+                showMessage('Please enter your name.', 'error');
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showMessage('Please enter a valid email address.', 'error');
+                return;
+            }
+
+            if (!db) {
+                showMessage('Firestore not initialized. Please try again later.', 'error');
+                console.error('Firestore not initialized');
+                return;
+            }
+
+            try {
+                console.log('Attempting to write to Firestore');
+                const docRef = await db.collection('access_requests').add({
+                    name: name,
+                    email: email,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('Document written with ID:', docRef.id);
+
+                showMessage('Request submitted successfully!', 'success');
+                accessForm.reset();
+                setTimeout(() => {
+                    accessModal.classList.add('hidden');
+                    formMessage.classList.add('hidden');
+                }, 2000);
+            } catch (error) {
+                showMessage('Error submitting request: ' + error.message, 'error');
+                console.error('Firestore submission error:', error);
+            }
+        });
+
+        // Show success/error message
+        function showMessage(message, type) {
+            formMessage.textContent = message;
+            formMessage.className = `alert alert-${type}`;
+            formMessage.classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
-
