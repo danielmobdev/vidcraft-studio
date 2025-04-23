@@ -7,9 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js"></script>
+    <!-- Firebase SDK (Modular) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+        import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+        // Expose Firebase to global scope for script
+        window.firebase = { initializeApp, getFirestore, collection, addDoc };
+    </script>
     <style>
         body {
             background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
@@ -225,6 +229,8 @@
             text-align: center;
             font-size: 0.875rem;
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
         .toggle {
             position: relative;
@@ -332,9 +338,13 @@
                 align-items: flex-start;
             }
         }
-        /* Ensure modal visibility */
-        #access-modal:not(.hidden) {
-            display: flex !important;
+        /* Modal visibility */
+        #access-modal {
+            display: none;
+            z-index: 50;
+        }
+        #access-modal.visible {
+            display: flex;
         }
     </style>
 </head>
@@ -354,16 +364,13 @@
             </div>
         </header>
         <div class="dashboard">
-            <!-- Navigation Tabs -->
             <div class="nav-tabs">
                 <div class="nav-tab active" data-tab="create"><i class="fas fa-plus mr-1"></i> Create</div>
                 <div class="nav-tab" data-tab="preview"><i class="fas fa-eye mr-1"></i> Preview</div>
                 <div class="nav-tab" data-tab="output"><i class="fas fa-download mr-1"></i> Output</div>
             </div>
-            <!-- Panels -->
             <div class="panel active" id="create-panel">
                 <form id="video-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Content Settings -->
                     <div class="card">
                         <div class="card-header">
                             <h3 class="text-lg font-semibold text-gray-200 flex items-center">
@@ -390,7 +397,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Visual Settings -->
                     <div class="card">
                         <div class="card-header">
                             <h3 class="text-lg font-semibold text-gray-200 flex items-center">
@@ -441,7 +447,11 @@
                                            class="w-24 rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
                                     <select id="font" name="font"
                                             class="flex-1 rounded-md border-gray-700 bg-[#3b3b5a] text-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-sm">
-                                        <option value="default">Default Font</option>
+                                        <option value="Inter" selected>Inter</option>
+                                        <option value="Poppins">Poppins</option>
+                                        <option value="Roboto">Roboto</option>
+                                        <option value="Open Sans">Open Sans</option>
+                                        <option value="Montserrat">Montserrat</option>
                                     </select>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -474,7 +484,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Audio Settings -->
                     <div class="card">
                         <div class="card-header">
                             <h3 class="text-lg font-semibold text-gray-200 flex items-center">
@@ -506,12 +515,11 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Actions -->
                     <div class="card flex justify-end gap-2">
-                        <button type="button" id="preview-script" class="btn-secondary tooltip" data-tooltip="Preview generated script" disabled>
+                        <button type="button" id="preview-script" class="btn-secondary tooltip" data-tooltip="Preview generated script">
                             <i class="fas fa-eye mr-1"></i> Script
                         </button>
-                        <button type="button" id="preview-narration" class="btn-secondary tooltip" data-tooltip="Listen to narration sample" disabled>
+                        <button type="button" id="preview-narration" class="btn-secondary tooltip" data-tooltip="Listen to narration sample">
                             <i class="fas fa-volume-up mr-1"></i> Narration
                         </button>
                         <button type="submit" id="generate-button" class="btn-primary tooltip" data-tooltip="Generate your video">
@@ -520,19 +528,17 @@
                     </div>
                 </form>
             </div>
-            <!-- Preview Panel -->
             <div class="panel" id="preview-panel">
                 <div class="preview-container">
                     <h3 class="text-lg font-semibold text-gray-200 mb-3 flex items-center">
                         <i class="fas fa-desktop mr-2 text-purple-500"></i> Script Preview
                     </h3>
                     <pre id="script-text" class="bg-[#1e1e2e] text-gray-200 p-4 rounded-md text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></pre>
-                    <button type="button" id="regenerate-script" class="mt-2 btn-secondary" disabled>
+                    <button type="button" id="regenerate-script" class="mt-2 btn-secondary">
                         <i class="fas fa-sync-alt mr-1"></i> Regenerate
                     </button>
                 </div>
             </div>
-            <!-- Output Panel -->
             <div class="panel" id="output-panel">
                 <div class="card">
                     <h3 class="text-lg font-semibold text-gray-200 mb-3 flex items-center">
@@ -552,10 +558,10 @@
                            class="inline-block btn-primary"><i class="fas fa-download mr-1"></i> Download Video</a>
                         <div id="feedback-container" class="mt-4">
                             <p class="text-sm text-gray-400 mb-2">How’s the video?</p>
-                            <button type="button" class="btn-secondary mr-2" disabled>
+                            <button type="button" id="feedback-great" class="btn-secondary mr-2">
                                 <i class="fas fa-thumbs-up mr-1"></i> Great
                             </button>
-                            <button type="button" class="btn-secondary" disabled>
+                            <button type="button" id="feedback-needs-work" class="btn-secondary">
                                 <i class="fas fa-thumbs-down mr-1"></i> Needs Work
                             </button>
                         </div>
@@ -564,12 +570,11 @@
             </div>
         </div>
     </div>
-    <!-- Request Access Modal -->
-    <div id="access-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div id="access-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50" role="dialog" aria-labelledby="modal-title">
         <div class="bg-[#1e1e2e] rounded-lg p-6 w-full max-w-md shadow-lg">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-gray-200 font-poppins">Request Access</h2>
-                <button id="close-modal" class="text-gray-500 hover:text-white">
+                <h2 id="modal-title" class="text-xl font-semibold text-gray-200 font-poppins">Request Access</h2>
+                <button id="close-modal" class="text-gray-500 hover:text-white" aria-label="Close modal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -592,169 +597,359 @@
         </div>
     </div>
     <script>
-        // Check if Firebase SDK is loaded
-        if (typeof firebase === 'undefined') {
-            console.error('Firebase SDK not loaded. Please check CDN URLs or network connectivity.');
-            alert('Failed to load Firebase SDK. Please check your internet connection and try again.');
-        } else {
-            console.log('Firebase SDK loaded successfully');
-        }
+        // Wait for DOM to load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Modal functionality
+            const requestAccessBtn = document.getElementById('request-access');
+            const accessModal = document.getElementById('access-modal');
+            const closeModalBtn = document.getElementById('close-modal');
+            const accessForm = document.getElementById('access-form');
+            const formMessage = document.getElementById('form-message');
 
-        // Initialize Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyD6jD0wb6d0Qf9R49kGWcowpl7KuIRqr0o",
-            authDomain: "vidcraft-studio-ce84a.firebaseapp.com",
-            projectId: "vidcraft-studio-ce84a",
-            storageBucket: "vidcraft-studio-ce84a.firebasestorage.app",
-            messagingSenderId: "763064123902",
-            appId: "1:763064123902:web:79037b611165d11433c0af"
-        };
+            // Debug: Verify elements
+            if (!requestAccessBtn || !accessModal || !closeModalBtn || !accessForm || !formMessage) {
+                console.error('Modal elements not found:', {
+                    requestAccessBtn,
+                    accessModal,
+                    closeModalBtn,
+                    accessForm,
+                    formMessage
+                });
+                return;
+            }
 
-        let db;
-        try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            console.log('Firebase initialized successfully');
-        } catch (error) {
-            console.error('Firebase initialization failed:', error);
-            alert('Failed to initialize Firebase. Please check your configuration and try again.');
-        }
+            // Open modal
+            requestAccessBtn.addEventListener('click', () => {
+                console.log('Request Access button clicked');
+                accessModal.classList.add('visible');
+                accessModal.classList.remove('hidden');
+                formMessage.classList.add('hidden');
+                document.getElementById('name').focus();
+                console.log('Modal should be visible now');
+            });
 
-        // Form handling
-        const form = document.getElementById('video-form');
-        const bgImagesInput = document.getElementById('bg-images');
-        const imageDropZone = document.getElementById('image-drop-zone');
-        const musicDropZone = document.getElementById('music-drop-zone');
-        const bgMusicInput = document.getElementById('bg-music');
-        const imagePreview = document.getElementById('image-preview');
-        const ttsSpeedInput = document.getElementById('tts-speed');
-        const ttsSpeedValue = document.getElementById('tts-speed-value');
-        const textEffectPreview = document.getElementById('text-effect-preview');
+            // Close modal
+            closeModalBtn.addEventListener('click', () => {
+                console.log('Close modal button clicked');
+                accessModal.classList.add('hidden');
+                accessModal.classList.remove('visible');
+                formMessage.classList.add('hidden');
+            });
 
-        // Update narration speed display
-        ttsSpeedInput.addEventListener('input', () => {
-            ttsSpeedValue.textContent = `${parseFloat(ttsSpeedInput.value).toFixed(1)}x`;
-        });
+            // Close modal with Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && accessModal.classList.contains('visible')) {
+                    console.log('Escape key pressed, closing modal');
+                    accessModal.classList.add('hidden');
+                    accessModal.classList.remove('visible');
+                    formMessage.classList.add('hidden');
+                }
+            });
 
-        // Tab navigation
-        const tabs = document.querySelectorAll('.nav-tab');
-        const panels = document.querySelectorAll('.panel');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
+            // Close modal when clicking outside
+            accessModal.addEventListener('click', (e) => {
+                if (e.target === accessModal) {
+                    console.log('Clicked outside modal, closing');
+                    accessModal.classList.add('hidden');
+                    accessModal.classList.remove('visible');
+                    formMessage.classList.add('hidden');
+                }
+            });
+
+            // Initialize Firebase
+            let db;
+            try {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyD6jD0wb6d0Qf9R49kGWcowpl7KuIRqr0o",
+                    authDomain: "vidcraft-studio-ce84a.firebaseapp.com",
+                    projectId: "vidcraft-studio-ce84a",
+                    storageBucket: "vidcraft-studio-ce84a.firebasestorage.app",
+                    messagingSenderId: "763064123902",
+                    appId: "1:763064123902:web:79037b611165d11433c0af"
+                };
+                const app = firebase.initializeApp(firebaseConfig);
+                db = firebase.getFirestore(app);
+                console.log('Firebase initialized successfully');
+            } catch (error) {
+                console.error('Firebase initialization failed:', error);
+                showMessage('Failed to initialize Firebase. Please check your configuration.', 'error');
+            }
+
+            // Handle form submission
+            accessForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
+
+                console.log('Form submitted:', { name, email });
+
+                if (!name) {
+                    showMessage('Please enter your name.', 'error');
+                    return;
+                }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    showMessage('Please enter a valid email address.', 'error');
+                    return;
+                }
+
+                if (!db) {
+                    showMessage('Database not initialized. Please try again later.', 'error');
+                    console.error('Firestore not initialized');
+                    return;
+                }
+
+                try {
+                    console.log('Attempting to write to Firestore');
+                    await firebase.addDoc(firebase.collection(db, 'access_requests'), {
+                        name,
+                        email,
+                        timestamp: new Date()
+                    });
+                    showMessage('Request submitted successfully!', 'success');
+                    accessForm.reset();
+                    setTimeout(() => {
+                        accessModal.classList.add('hidden');
+                        accessModal.classList.remove('visible');
+                        formMessage.classList.add('hidden');
+                    }, 2000);
+                } catch (error) {
+                    showMessage('Error submitting request: ' + error.message, 'error');
+                    console.error('Firestore submission error:', error);
+                }
+            });
+
+            // Form handling
+            const form = document.getElementById('video-form');
+            const bgImagesInput = document.getElementById('bg-images');
+            const imageDropZone = document.getElementById('image-drop-zone');
+            const musicDropZone = document.getElementById('music-drop-zone');
+            const bgMusicInput = document.getElementById('bg-music');
+            const imagePreview = document.getElementById('image-preview');
+            const ttsSpeedInput = document.getElementById('tts-speed');
+            const ttsSpeedValue = document.getElementById('tts-speed-value');
+            const textEffectPreview = document.getElementById('text-effect-preview');
+            const scriptText = document.getElementById('script-text');
+            const progressContainer = document.getElementById('progress-container');
+            const progressText = document.getElementById('progress-text');
+            const progressBarFill = document.getElementById('progress-bar-fill');
+            const resultContainer = document.getElementById('result-container');
+
+            ttsSpeedInput.addEventListener('input', () => {
+                ttsSpeedValue.textContent = `${parseFloat(ttsSpeedInput.value).toFixed(1)}x`;
+            });
+
+            const tabs = document.querySelectorAll('.nav-tab');
+            const panels = document.querySelectorAll('.panel');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    panels.forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+                });
+            });
+
+            document.querySelectorAll('.card-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const icon = header.querySelector('i');
+                    content.classList.toggle('active');
+                    header.classList.toggle('active');
+                });
+            });
+
+            imageDropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                imageDropZone.classList.add('dragover');
+            });
+            imageDropZone.addEventListener('dragleave', () => {
+                imageDropZone.classList.remove('dragover');
+            });
+            imageDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                imageDropZone.classList.remove('dragover');
+                try {
+                    const files = e.dataTransfer.files;
+                    updateImagePreviews(files);
+                } catch (error) {
+                    console.error('Error handling image drop:', error);
+                    showMessage('Error uploading images.', 'error');
+                }
+            });
+            imageDropZone.querySelector('span').addEventListener('click', () => bgImagesInput.click());
+            bgImagesInput.addEventListener('change', () => {
+                try {
+                    updateImagePreviews(bgImagesInput.files);
+                } catch (error) {
+                    console.error('Error handling image input:', error);
+                    showMessage('Error uploading images.', 'error');
+                }
+            });
+
+            function updateImagePreviews(files) {
+                imagePreview.innerHTML = '';
+                Array.from(files).forEach(file => {
+                    if (!file.type.startsWith('image/')) return;
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.className = 'image-preview';
+                    img.alt = 'Background preview';
+                    imagePreview.appendChild(img);
+                });
+            }
+
+            musicDropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                musicDropZone.classList.add('dragover');
+            });
+            musicDropZone.addEventListener('dragleave', () => {
+                musicDropZone.classList.remove('dragover');
+            });
+            musicDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                musicDropZone.classList.remove('dragover');
+                try {
+                    const files = e.dataTransfer.files;
+                    musicDropZone.querySelector('p').textContent = files.length ? `${files[0].name}` : 'Drag & drop audio or browse';
+                } catch (error) {
+                    console.error('Error handling music drop:', error);
+                    showMessage('Error uploading audio.', 'error');
+                }
+            });
+            musicDropZone.querySelector('span').addEventListener('click', () => bgMusicInput.click());
+            bgMusicInput.addEventListener('change', () => {
+                try {
+                    musicDropZone.querySelector('p').textContent = bgMusicInput.files.length ? bgMusicInput.files[0].name : 'Drag & drop audio or browse';
+                } catch (error) {
+                    console.error('Error handling music input:', error);
+                    showMessage('Error uploading audio.', 'error');
+                }
+            });
+
+            document.getElementById('preview-text-effect').addEventListener('click', () => {
+                const effect = document.getElementById('text-effect').value;
+                textEffectPreview.classList.remove('hidden');
+                textEffectPreview.style.animation = 'none';
+                textEffectPreview.textContent = 'Sample Text';
+                textEffectPreview.offsetHeight;
+                if (effect === 'typewriter') {
+                    typewriterEffect(textEffectPreview, 'Sample Text', 100);
+                } else if (effect === 'word_by_word') {
+                    wordByWordEffect(textEffectPreview, 'Sample Text', 500);
+                } else {
+                    textEffectPreview.style.animation = getAnimation(effect);
+                    setTimeout(() => textEffectPreview.classList.add('hidden'), 2000);
+                }
+            });
+
+            function typewriterEffect(element, text, speed) {
+                element.textContent = '';
+                let i = 0;
+                function type() {
+                    if (i < text.length) {
+                        element.textContent += text.charAt(i);
+                        i++;
+                        setTimeout(type, speed);
+                    } else {
+                        setTimeout(() => element.classList.add('hidden'), 1000);
+                    }
+                }
+                type();
+            }
+
+            function wordByWordEffect(element, text, speed) {
+                const words = text.split(' ');
+                element.textContent = '';
+                let i = 0;
+                function addWord() {
+                    if (i < words.length) {
+                        element.textContent += (i > 0 ? ' ' : '') + words[i];
+                        i++;
+                        setTimeout(addWord, speed);
+                    } else {
+                        setTimeout(() => element.classList.add('hidden'), 1000);
+                    }
+                }
+                addWord();
+            }
+
+            function getAnimation(effect) {
+                const animations = {
+                    static: 'none',
+                    fade_in: 'fadeIn 1s ease-in',
+                    slide_in: 'slideIn 1s ease-in',
+                    zoom_in: 'zoomIn 1s ease-in',
+                    wave: 'wave 2s ease-in-out infinite',
+                    highlight: 'highlight 1s ease-in'
+                };
+                return animations[effect] || 'none';
+            }
+
+            document.getElementById('preview-script').addEventListener('click', () => {
+                const topic = document.getElementById('topic').value || 'Sample Topic';
+                const customScript = document.getElementById('custom-script').value;
+                const contentStyle = document.getElementById('content-style').value;
+                scriptText.textContent = customScript || `Generated script for ${topic} in ${contentStyle} style:\n1. Introduction to ${topic}.\n2. Key points about ${topic}.\n3. Conclusion.`;
                 tabs.forEach(t => t.classList.remove('active'));
                 panels.forEach(p => p.classList.remove('active'));
-                tab.classList.add('active');
-                document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+                document.querySelector('[data-tab="preview"]').classList.add('active');
+                document.getElementById('preview-panel').classList.add('active');
             });
-        });
 
-        // Collapsible card headers
-        document.querySelectorAll('.card-header').forEach(header => {
-            header.addEventListener('click', () => {
-                const content = header.nextElementSibling;
-                const icon = header.querySelector('i');
-                content.classList.toggle('active');
-                header.classList.toggle('active');
+            document.getElementById('regenerate-script').addEventListener('click', () => {
+                scriptText.textContent = 'Regenerated script:\n1. New introduction.\n2. Updated points.\n3. New conclusion.';
+                showMessage('Script regenerated!', 'success');
             });
-        });
 
-        // Drag-and-drop for images
-        imageDropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            imageDropZone.classList.add('dragover');
-        });
-        imageDropZone.addEventListener('dragleave', () => {
-            imageDropZone.classList.remove('dragover');
-        });
-        imageDropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            imageDropZone.classList.remove('dragover');
-            try {
-                const files = e.dataTransfer.files;
-                updateImagePreviews(files);
-            } catch (error) {
-                console.error('Error handling image drop:', error);
-            }
-        });
-        imageDropZone.querySelector('span').addEventListener('click', () => bgImagesInput.click());
-        bgImagesInput.addEventListener('change', () => {
-            try {
-                updateImagePreviews(bgImagesInput.files);
-            } catch (error) {
-                console.error('Error handling image input:', error);
-            }
-        });
-
-        function updateImagePreviews(files) {
-            imagePreview.innerHTML = '';
-            Array.from(files).forEach(file => {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                img.className = 'image-preview';
-                img.alt = 'Background preview';
-                imagePreview.appendChild(img);
+            document.getElementById('preview-narration').addEventListener('click', () => {
+                showMessage('Narration preview: Playing sample audio...', 'success');
             });
-        }
 
-        // Drag-and-drop for music
-        musicDropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            musicDropZone.classList.add('dragover');
-        });
-        musicDropZone.addEventListener('dragleave', () => {
-            musicDropZone.classList.remove('dragover');
-        });
-        musicDropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            musicDropZone.classList.remove('dragover');
-            try {
-                const files = e.dataTransfer.files;
-                musicDropZone.querySelector('p').textContent = files.length ? `${files[0].name}` : 'Drag & drop audio or browse';
-            } catch (error) {
-                console.error('Error handling music drop:', error);
+            document.getElementById('feedback-great').addEventListener('click', () => {
+                showMessage('Thank you for your feedback!', 'success');
+            });
+            document.getElementById('feedback-needs-work').addEventListener('click', () => {
+                showMessage('Thank you for your feedback! We’ll improve.', 'success');
+            });
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                tabs.forEach(t => t.classList.remove('active'));
+                panels.forEach(p => p.classList.remove('active'));
+                document.querySelector('[data-tab="output"]').classList.add('active');
+                document.getElementById('output-panel').classList.add('active');
+
+                progressContainer.classList.remove('hidden');
+                resultContainer.classList.add('hidden');
+                progressText.textContent = 'Generating your video...';
+                progressBarFill.style.width = '0%';
+
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 10;
+                    progressBarFill.style.width = `${progress}%`;
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        progressContainer.classList.add('hidden');
+                        resultContainer.classList.remove('hidden');
+                        document.getElementById('download-link').href = '#';
+                        showMessage('Video generated successfully!', 'success');
+                    }
+                }, 500);
+            });
+
+            function showMessage(message, type) {
+                formMessage.textContent = message;
+                formMessage.className = `alert alert-${type}`;
+                formMessage.classList.remove('hidden');
+                setTimeout(() => formMessage.classList.add('hidden'), 3000);
             }
         });
-        musicDropZone.querySelector('span').addEventListener('click', () => bgMusicInput.click());
-        bgMusicInput.addEventListener('change', () => {
-            try {
-                musicDropZone.querySelector('p').textContent = bgMusicInput.files.length ? bgMusicInput.files[0].name : 'Drag & drop audio or browse';
-            } catch (error) {
-                console.error('Error handling music input:', error);
-            }
-        });
 
-        // Text effect preview
-        document.getElementById('preview-text-effect').addEventListener('click', () => {
-            const effect = document.getElementById('text-effect').value;
-            textEffectPreview.classList.remove('hidden');
-            textEffectPreview.style.animation = 'none';
-            textEffectPreview.offsetHeight; // Trigger reflow
-            textEffectPreview.style.animation = getAnimation(effect);
-            setTimeout(() => textEffectPreview.classList.add('hidden'), 2000);
-        });
-
-        function getAnimation(effect) {
-            const animations = {
-                static: 'none',
-                fade_in: 'fadeIn 1s ease-in',
-                typewriter: 'typewriter 2s steps(40, end)',
-                slide_in: 'slideIn 1s ease-in',
-                zoom_in: 'zoomIn 1s ease-in',
-                wave: 'wave 2s ease-in-out infinite',
-                highlight: 'highlight 1s ease-in',
-                word_by_word: 'wordByWord 2s ease-in'
-            };
-            return animations[effect] || 'none';
-        }
-
-        // Custom animations for text effects
+        // Animation styles
         const styleSheet = document.createElement('style');
         styleSheet.innerHTML = `
             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes typewriter {
-                from { width: 0; } to { width: 100%; }
-                0% { border-right: 2px solid #e2e8f0; } 100% { border-right: none; }
-            }
             @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
             @keyframes zoomIn { from { transform: scale(0); } to { transform: scale(1); } }
             @keyframes wave {
@@ -764,95 +959,8 @@
             @keyframes highlight {
                 0% { background: none; } 50% { background: rgba(124, 58, 237, 0.3); } 100% { background: none; }
             }
-            @keyframes wordByWord {
-                0% { opacity: 0; } 25% { opacity: 0.3; } 50% { opacity: 0.6; } 100% { opacity: 1; }
-            }
-            .text-effect-preview { overflow: hidden; white-space: nowrap; }
         `;
         document.head.appendChild(styleSheet);
-
-        // Generate button action
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            alert('Thank you for generating the video!');
-        });
-
-        // Modal functionality
-        const requestAccessBtn = document.getElementById('request-access');
-        const accessModal = document.getElementById('access-modal');
-        const closeModalBtn = document.getElementById('close-modal');
-        const accessForm = document.getElementById('access-form');
-        const formMessage = document.getElementById('form-message');
-
-        requestAccessBtn.addEventListener('click', () => {
-            console.log('Request Access button clicked');
-            accessModal.classList.remove('hidden');
-            formMessage.classList.add('hidden');
-        });
-
-        closeModalBtn.addEventListener('click', () => {
-            accessModal.classList.add('hidden');
-            formMessage.classList.add('hidden');
-        });
-
-        // Close modal when clicking outside
-        accessModal.addEventListener('click', (e) => {
-            if (e.target === accessModal) {
-                accessModal.classList.add('hidden');
-                formMessage.classList.add('hidden');
-            }
-        });
-
-        // Handle form submission
-        accessForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('name').value.trim();
-            const email = document.getElementById('email').value.trim();
-
-            console.log('Form submitted:', { name, email });
-
-            if (!name) {
-                showMessage('Please enter your name.', 'error');
-                return;
-            }
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showMessage('Please enter a valid email address.', 'error');
-                return;
-            }
-
-            if (!db) {
-                showMessage('Firestore not initialized. Please try again later.', 'error');
-                console.error('Firestore not initialized');
-                return;
-            }
-
-            try {
-                console.log('Attempting to write to Firestore');
-                const docRef = await db.collection('access_requests').add({
-                    name: name,
-                    email: email,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                console.log('Document written with ID:', docRef.id);
-
-                showMessage('Request submitted successfully!', 'success');
-                accessForm.reset();
-                setTimeout(() => {
-                    accessModal.classList.add('hidden');
-                    formMessage.classList.add('hidden');
-                }, 2000);
-            } catch (error) {
-                showMessage('Error submitting request: ' + error.message, 'error');
-                console.error('Firestore submission error:', error);
-            }
-        });
-
-        // Show success/error message
-        function showMessage(message, type) {
-            formMessage.textContent = message;
-            formMessage.className = `alert alert-${type}`;
-            formMessage.classList.remove('hidden');
-        }
     </script>
 </body>
 </html>
