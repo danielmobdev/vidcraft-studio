@@ -666,7 +666,10 @@
             requestAccessBtn.addEventListener('click', openAccessModal);
 
             // Open modal on "Download Video" button click
-            downloadLink.addEventListener('click', openAccessModal);
+            downloadLink.addEventListener('click', (e) => {
+                e.preventDefault(); // Prevent any default behavior
+                openAccessModal();
+            });
 
             // Close modal
             closeModalBtn.addEventListener('click', () => {
@@ -712,7 +715,6 @@
                     countries.forEach(country => {
                         if (!country.idd || !country.idd.root) return;
                         const name = country.name.common || 'Unknown';
-                        // Use root as primary code, combine with suffixes if present
                         const codes = country.idd.suffixes
                             ? country.idd.suffixes.map(suffix => `${country.idd.root}${suffix}`)
                             : [country.idd.root];
